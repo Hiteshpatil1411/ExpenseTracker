@@ -16,7 +16,8 @@ A full-stack web application to track your income and expenses, built with **Rea
   - [Frontend Setup](#frontend-setup)
 - [Environment Variables](#environment-variables)
 - [API Endpoints](#api-endpoints)
-- [Screenshots](#screenshots)
+- [Authentication Flow](#authentication-flow)
+- [Available Scripts](#available-scripts)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -31,7 +32,7 @@ Expense Tracker is a personal finance management app that allows users to regist
 ## ✨ Features
 
 - 🔐 User Authentication (Register / Login with JWT)
-- 📊 Dashboard with income & expense overview
+- 📊 Dashboard with income & expense overview and charts
 - ➕ Add, view, and delete income entries
 - ➖ Add, view, and delete expense entries
 - 📁 Excel export support (via ExcelJS)
@@ -77,29 +78,32 @@ expense-tracker/
 │
 ├── backend/
 │   ├── config/
-│   │   └── db.js                  # MongoDB connection
+│   │   └── db.js                    # MongoDB connection
 │   ├── controllers/
-│   │   └── authController.js      # Auth logic (register, login)
-│   ├── middlewares/
-│   │   └── authMiddleware.js      # JWT protection middleware
+│   │   └── authController.js        # Auth logic (register, login, getUser)
+│   ├── middleware/
+│   │   ├── authMiddleware.js        # JWT protect middleware
+│   │   └── uploadMiddleware.js      # Multer file upload config
 │   ├── models/
-│   │   ├── User.js                # User schema
-│   │   ├── Income.js              # Income schema
-│   │   └── Expense.js             # Expense schema
+│   │   ├── User.js                  # User schema (name, email, password, avatar)
+│   │   ├── Income.js                # Income schema
+│   │   └── Expense.js               # Expense schema
 │   ├── routes/
-│   │   ├── authRoutes.js          # /api/auth
-│   │   ├── income.Routes.js       # /api/income
-│   │   ├── expenseRoutes.js       # /api/expense
-│   │   └── dashboarfRoutes.js     # /api/dashboard
-│   ├── .env                       # Environment variables
-│   ├── server.js                  # Entry point
+│   │   ├── authRoutes.js            # /api/auth (register, login, getUser, upload)
+│   │   ├── incomeRoutes.js          # /api/income
+│   │   ├── expenseRoutes.js         # /api/expense
+│   │   └── dashboardRoutes.js       # /api/dashboard
+│   ├── uploads/                     # Stored profile images (auto-created)
+│   ├── .env                         # Environment variables (never commit!)
+│   ├── .gitignore                   # node_modules, .env
+│   ├── server.js                    # Entry point
 │   └── package.json
 │
 └── frontend/
     └── expense-tracker/
         ├── public/
         ├── src/
-        │   ├── assets/            # Static assets (images, SVGs)
+        │   ├── assets/              # Static assets (images, SVGs)
         │   ├── components/
         │   │   └── layouts/
         │   │       ├── AuthLayout.jsx
@@ -115,9 +119,9 @@ expense-tracker/
         │   │       ├── Income.jsx
         │   │       └── Expense.jsx
         │   ├── utils/
-        │   │   ├── apiPath.js     # API base URLs
-        │   │   ├── data.js        # Static/helper data
-        │   │   └── helper.js      # Utility functions (e.g. validateEmail)
+        │   │   ├── apiPath.js       # API base URLs
+        │   │   ├── data.js          # Static/helper data
+        │   │   └── helper.js        # Utility functions (e.g. validateEmail)
         │   ├── App.jsx
         │   ├── main.jsx
         │   └── index.css
@@ -177,7 +181,7 @@ The frontend will run on: `http://localhost:5173`
 
 ## 🔐 Environment Variables
 
-Create a `.env` file inside the `backend/` directory with the following variables:
+Create a `.env` file inside the `backend/` directory:
 
 ```env
 MONGO_URI=your_mongodb_connection_string
@@ -186,7 +190,7 @@ JWT_SECRET=your_jwt_secret_key
 CLIENT_URL=http://localhost:5173
 ```
 
-> ⚠️ **Important:** Never commit your `.env` file to version control. Make sure it is listed in `.gitignore`.
+> ⚠️ **Never commit your `.env` file.** Make sure `.env` is listed in `.gitignore`.
 
 ---
 
@@ -197,11 +201,12 @@ CLIENT_URL=http://localhost:5173
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | POST | `/api/auth/register` | Register a new user | ❌ |
-| POST | `/api/auth/login` | Login and get JWT token | ❌ |
+| POST | `/api/auth/login` | Login and receive JWT token | ❌ |
 | GET | `/api/auth/getUser` | Get logged-in user info | ✅ |
+| POST | `/api/auth/upload-image` | Upload profile photo | ❌ |
 
 ### Income Routes — `/api/income`
-> *(Coming soon / in development)*
+> *(In development)*
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
@@ -210,7 +215,7 @@ CLIENT_URL=http://localhost:5173
 | DELETE | `/api/income/:id` | Delete an income entry | ✅ |
 
 ### Expense Routes — `/api/expense`
-> *(Coming soon / in development)*
+> *(In development)*
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
@@ -218,15 +223,23 @@ CLIENT_URL=http://localhost:5173
 | POST | `/api/expense` | Add a new expense entry | ✅ |
 | DELETE | `/api/expense/:id` | Delete an expense entry | ✅ |
 
+### Dashboard Routes — `/api/dashboard`
+> *(In development)*
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/dashboard` | Get income/expense summary | ✅ |
+
 ---
 
 ## 🔒 Authentication Flow
 
 1. User registers via `POST /api/auth/register`
-2. User logs in via `POST /api/auth/login` and receives a **JWT token**
-3. Token is stored in `localStorage` on the frontend
-4. Protected routes check for the token via `authMiddleware`
-5. Frontend uses `PrivateRoute` component to guard dashboard pages
+2. Password is hashed with **bcryptjs** before saving to MongoDB
+3. User logs in via `POST /api/auth/login` and receives a **JWT token** (expires in 1h)
+4. Token is stored in `localStorage` on the frontend
+5. Protected routes verify the token via `authMiddleware` (`protect`)
+6. `req.user` is populated from the decoded JWT on every protected request
 
 ---
 
@@ -268,7 +281,8 @@ This project is licensed under the **ISC License**.
 
 ## 👨‍💻 Author
 
-**Hitesh Patil**
+**Hitesh Patil**  
+[GitHub](https://github.com/Hiteshpatil1411)
 
 ---
 
