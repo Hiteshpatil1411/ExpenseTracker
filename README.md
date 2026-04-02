@@ -16,6 +16,10 @@ A full-stack web application to track your income and expenses, built with **Rea
   - [Frontend Setup](#frontend-setup)
 - [Environment Variables](#environment-variables)
 - [API Endpoints](#api-endpoints)
+  - [Authentication Routes](#authentication-routes)
+  - [Income Routes](#income-routes)
+  - [Expense Routes](#expense-routes)
+  - [Dashboard Routes](#dashboard-routes)
 - [Authentication Flow](#authentication-flow)
 - [Available Scripts](#available-scripts)
 - [Contributing](#contributing)
@@ -80,7 +84,10 @@ expense-tracker/
 │   ├── config/
 │   │   └── db.js                    # MongoDB connection
 │   ├── controllers/
-│   │   └── authController.js        # Auth logic (register, login, getUser)
+│   │   ├── authController.js        # Auth logic (register, login, getUser)
+│   │   ├── incomeController.js      # Income CRUD operations
+│   │   ├── expenseController.js     # Expense CRUD operations
+│   │   └── dashboardController.js   # Dashboard data aggregation
 │   ├── middleware/
 │   │   ├── authMiddleware.js        # JWT protect middleware
 │   │   └── uploadMiddleware.js      # Multer file upload config
@@ -196,39 +203,506 @@ CLIENT_URL=http://localhost:5173
 
 ## 📡 API Endpoints
 
-### Auth Routes — `/api/auth`
+### Authentication Routes
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/register` | Register a new user | ❌ |
-| POST | `/api/auth/login` | Login and receive JWT token | ❌ |
-| GET | `/api/auth/getUser` | Get logged-in user info | ✅ |
-| POST | `/api/auth/upload-image` | Upload profile photo | ❌ |
+**Base URL:** `/api/auth`  
+**Controller:** `authController.js`
 
-### Income Routes — `/api/income`
-> *(In development)*
+---
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/income` | Get all income entries | ✅ |
-| POST | `/api/income` | Add a new income entry | ✅ |
-| DELETE | `/api/income/:id` | Delete an income entry | ✅ |
+#### 1. Register User
 
-### Expense Routes — `/api/expense`
-> *(In development)*
+**Endpoint:** `POST /api/auth/register`  
+**Method:** `registerUser`  
+**Auth Required:** ❌
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/expense` | Get all expense entries | ✅ |
-| POST | `/api/expense` | Add a new expense entry | ✅ |
-| DELETE | `/api/expense/:id` | Delete an expense entry | ✅ |
+**Request Body:**
+```json
+{
+  "fullname": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg"
+}
+```
 
-### Dashboard Routes — `/api/dashboard`
-> *(In development)*
+**Sample Response:**
+```json
+{
+  "id": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "user": {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "fullname": "John Doe",
+    "email": "john@example.com",
+    "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg",
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "updatedAt": "2024-03-15T10:30:00.000Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/dashboard` | Get income/expense summary | ✅ |
+---
+
+#### 2. Login User
+
+**Endpoint:** `POST /api/auth/login`  
+**Method:** `loginUser`  
+**Auth Required:** ❌
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+**Sample Response:**
+```json
+{
+  "id": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "user": {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "fullname": "John Doe",
+    "email": "john@example.com",
+    "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg",
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "updatedAt": "2024-03-15T10:30:00.000Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+---
+
+#### 3. Get User Info
+
+**Endpoint:** `GET /api/auth/getUser`  
+**Method:** `getUserInfo`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Sample Response:**
+```json
+{
+  "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "fullname": "John Doe",
+  "email": "john@example.com",
+  "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg",
+  "createdAt": "2024-03-15T10:30:00.000Z",
+  "updatedAt": "2024-03-15T10:30:00.000Z"
+}
+```
+
+---
+
+#### 4. Upload Profile Image
+
+**Endpoint:** `POST /api/auth/upload-image`  
+**Method:** Custom route handler  
+**Auth Required:** ❌
+
+**Request Type:** `multipart/form-data`
+
+**Form Data:**
+```
+image: [File]
+```
+
+**Sample Response:**
+```json
+{
+  "imageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg"
+}
+```
+
+---
+
+### Income Routes
+
+**Base URL:** `/api/income`  
+**Controller:** `incomeController.js`
+
+---
+
+#### 1. Add Income
+
+**Endpoint:** `POST /api/income/add`  
+**Method:** `addIncome`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Request Body:**
+```json
+{
+  "icon": "💼",
+  "source": "Salary",
+  "amount": 5000,
+  "date": "2024-03-15"
+}
+```
+
+**Sample Response:**
+```json
+{
+  "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
+  "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "icon": "💼",
+  "source": "Salary",
+  "amount": 5000,
+  "date": "2024-03-15T00:00:00.000Z",
+  "createdAt": "2024-03-15T10:35:00.000Z",
+  "updatedAt": "2024-03-15T10:35:00.000Z"
+}
+```
+
+---
+
+#### 2. Get All Income
+
+**Endpoint:** `GET /api/income/get`  
+**Method:** `getAllIncome`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Sample Response:**
+```json
+[
+  {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
+    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "icon": "💼",
+    "source": "Salary",
+    "amount": 5000,
+    "date": "2024-03-15T00:00:00.000Z",
+    "createdAt": "2024-03-15T10:35:00.000Z",
+    "updatedAt": "2024-03-15T10:35:00.000Z"
+  },
+  {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j3",
+    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "icon": "💰",
+    "source": "Freelance",
+    "amount": 1500,
+    "date": "2024-03-10T00:00:00.000Z",
+    "createdAt": "2024-03-10T14:20:00.000Z",
+    "updatedAt": "2024-03-10T14:20:00.000Z"
+  }
+]
+```
+
+---
+
+#### 3. Delete Income
+
+**Endpoint:** `DELETE /api/income/:id`  
+**Method:** `deleteIncome`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**URL Parameter:**
+```
+id: 65f1a2b3c4d5e6f7g8h9i0j2
+```
+
+**Sample Response:**
+```json
+{
+  "message": "income Deleted Successfully"
+}
+```
+
+---
+
+#### 4. Download Income Excel
+
+**Endpoint:** `GET /api/income/downloadexcel`  
+**Method:** `downloadIncomeExcel`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Response:** Excel file download (`income_details.xlsx`)
+
+**Excel Content:**
+| Source | Amount | Date |
+|--------|--------|------|
+| Salary | 5000 | 2024-03-15 |
+| Freelance | 1500 | 2024-03-10 |
+
+---
+
+### Expense Routes
+
+**Base URL:** `/api/expense`  
+**Controller:** `expenseController.js`
+
+---
+
+#### 1. Add Expense
+
+**Endpoint:** `POST /api/expense/add`  
+**Method:** `addExpense`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Request Body:**
+```json
+{
+  "icon": "🍔",
+  "category": "Food",
+  "amount": 50,
+  "date": "2024-03-15"
+}
+```
+
+**Sample Response:**
+```json
+{
+  "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
+  "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "icon": "🍔",
+  "category": "Food",
+  "amount": 50,
+  "date": "2024-03-15T00:00:00.000Z",
+  "createdAt": "2024-03-15T12:00:00.000Z",
+  "updatedAt": "2024-03-15T12:00:00.000Z"
+}
+```
+
+---
+
+#### 2. Get All Expenses
+
+**Endpoint:** `GET /api/expense/get`  
+**Method:** `getAllExpense`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Sample Response:**
+```json
+[
+  {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
+    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "icon": "🍔",
+    "category": "Food",
+    "amount": 50,
+    "date": "2024-03-15T00:00:00.000Z",
+    "createdAt": "2024-03-15T12:00:00.000Z",
+    "updatedAt": "2024-03-15T12:00:00.000Z"
+  },
+  {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j5",
+    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "icon": "🚗",
+    "category": "Transport",
+    "amount": 30,
+    "date": "2024-03-14T00:00:00.000Z",
+    "createdAt": "2024-03-14T09:15:00.000Z",
+    "updatedAt": "2024-03-14T09:15:00.000Z"
+  }
+]
+```
+
+---
+
+#### 3. Delete Expense
+
+**Endpoint:** `DELETE /api/expense/:id`  
+**Method:** `deleteExpense`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**URL Parameter:**
+```
+id: 65f1a2b3c4d5e6f7g8h9i0j4
+```
+
+**Sample Response:**
+```json
+{
+  "message": "Expense Deleted Successfully"
+}
+```
+
+---
+
+#### 4. Download Expense Excel
+
+**Endpoint:** `GET /api/expense/downloadexcel`  
+**Method:** `downloadExpenseExcel`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Response:** Excel file download (`expense_details.xlsx`)
+
+**Excel Content:**
+| Category | Amount | Date |
+|----------|--------|------|
+| Food | 50 | 2024-03-15 |
+| Transport | 30 | 2024-03-14 |
+
+---
+
+### Dashboard Routes
+
+**Base URL:** `/api/dashboard`  
+**Controller:** `dashboardController.js`
+
+---
+
+#### 1. Get Dashboard Data
+
+**Endpoint:** `GET /api/dashboard`  
+**Method:** `getDashboardData`  
+**Auth Required:** ✅
+
+**Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Sample Response:**
+```json
+{
+  "totalBalance": 6420,
+  "totalIncome": 6500,
+  "totalExpenses": 80,
+  "last30DaysExpenses": {
+    "total": 80,
+    "transactions": [
+      {
+        "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
+        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+        "icon": "🍔",
+        "category": "Food",
+        "amount": 50,
+        "date": "2024-03-15T00:00:00.000Z",
+        "createdAt": "2024-03-15T12:00:00.000Z",
+        "updatedAt": "2024-03-15T12:00:00.000Z"
+      },
+      {
+        "_id": "65f1a2b3c4d5e6f7g8h9i0j5",
+        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+        "icon": "🚗",
+        "category": "Transport",
+        "amount": 30,
+        "date": "2024-03-14T00:00:00.000Z",
+        "createdAt": "2024-03-14T09:15:00.000Z",
+        "updatedAt": "2024-03-14T09:15:00.000Z"
+      }
+    ]
+  },
+  "last60DaysIncome": {
+    "total": 6500,
+    "transactions": [
+      {
+        "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
+        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+        "icon": "💼",
+        "source": "Salary",
+        "amount": 5000,
+        "date": "2024-03-15T00:00:00.000Z",
+        "createdAt": "2024-03-15T10:35:00.000Z",
+        "updatedAt": "2024-03-15T10:35:00.000Z"
+      },
+      {
+        "_id": "65f1a2b3c4d5e6f7g8h9i0j3",
+        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+        "icon": "💰",
+        "source": "Freelance",
+        "amount": 1500,
+        "date": "2024-03-10T00:00:00.000Z",
+        "createdAt": "2024-03-10T14:20:00.000Z",
+        "updatedAt": "2024-03-10T14:20:00.000Z"
+      }
+    ]
+  },
+  "recentTransactions": [
+    {
+      "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
+      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+      "icon": "💼",
+      "source": "Salary",
+      "amount": 5000,
+      "date": "2024-03-15T00:00:00.000Z",
+      "createdAt": "2024-03-15T10:35:00.000Z",
+      "updatedAt": "2024-03-15T10:35:00.000Z",
+      "type": "income"
+    },
+    {
+      "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
+      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+      "icon": "🍔",
+      "category": "Food",
+      "amount": 50,
+      "date": "2024-03-15T00:00:00.000Z",
+      "createdAt": "2024-03-15T12:00:00.000Z",
+      "updatedAt": "2024-03-15T12:00:00.000Z",
+      "type": "expense"
+    },
+    {
+      "_id": "65f1a2b3c4d5e6f7g8h9i0j5",
+      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+      "icon": "🚗",
+      "category": "Transport",
+      "amount": 30,
+      "date": "2024-03-14T00:00:00.000Z",
+      "createdAt": "2024-03-14T09:15:00.000Z",
+      "updatedAt": "2024-03-14T09:15:00.000Z",
+      "type": "expense"
+    },
+    {
+      "_id": "65f1a2b3c4d5e6f7g8h9i0j3",
+      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
+      "icon": "💰",
+      "source": "Freelance",
+      "amount": 1500,
+      "date": "2024-03-10T00:00:00.000Z",
+      "createdAt": "2024-03-10T14:20:00.000Z",
+      "updatedAt": "2024-03-10T14:20:00.000Z",
+      "type": "income"
+    }
+  ]
+}
+```
 
 ---
 
@@ -286,4 +760,15 @@ This project is licensed under the **ISC License**.
 
 ---
 
-> 💡 *This project is actively in development. Income, Expense, and Dashboard features are being built out progressively.*
+## 📝 Notes
+
+- All protected routes require JWT authentication via `Authorization: Bearer <token>` header
+- Passwords are automatically hashed before storage using bcryptjs
+- JWT tokens expire after 1 hour
+- Excel downloads are generated dynamically based on user data
+- Profile images are stored in the `uploads/` folder and served statically
+- All dates are stored in ISO 8601 format
+
+---
+
+> 💡 *This is a fully functional expense tracking application with complete CRUD operations for income and expenses, along with comprehensive dashboard analytics.*
