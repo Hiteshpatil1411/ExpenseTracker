@@ -1,11 +1,17 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import AuthLayout from '../../components/layouts/AuthLayout'
 
-// import { useNavigate } from 'react-router-dom';
-import ProfilePhotoSelector from '../../components/layouts/Inputs/ProfilePhotoSelector';
+
+
 import { validateEmail } from '../../utils/helper';
-import Input from '../../components/layouts/Inputs/input';
-import { useNavigate } from 'react-router-dom';
+
+import { Link, useNavigate } from 'react-router-dom';
+import axiosInstance from '../../utils/axiosInstance';
+import { API_PATHS } from '../../utils/apiPath';
+import UserProvider,{ UserContext } from '../../context/UserContext'
+import uploadImage from '../../utils/uploadImage';
+import ProfilePhotoSelector from '../../components/Inputs/ProfilePhotoSelector';
+import Input from '../../components/Inputs/Input';
 
 const SignUp = () => {
   const [fullName,setFullName]=useState("");
@@ -13,32 +19,68 @@ const SignUp = () => {
   const[email,setEmail]=useState("")
   const [password,setPassword]=useState("")
 
-  const[error,setError]= useState(null)
-  const handleSignUp = async(e)=>{
-    e.preventDefault();
-    let profileImageUrl="";
-    if(!fullName){
-      setError('Please Enter Full Name')
-      return;
-    }
-        if(!validateEmail(email)){
-          setError('Please Enter Vaild Email')
-          return;
-        }
-        if(!password){
-          setError('Plese Enter Password');
-          return;
-        }
-        setError(null); // Clear previous errors
-  }
+  const { updateUser } = useContext(UserContext);
 
   const navigate=useNavigate();
+  const[error,setError]= useState(null)
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+
+    if (!fullName) {
+        setError('Please Enter Full Name');
+        return;
+    }
+    if (!validateEmail(email)) {
+        setError('Please Enter Valid Email');
+        return;
+    }
+    if (!password) {
+        setError('Please Enter Password');
+        return;
+    }
+
+    setError("");
+
+    let profileImageUrl = "";
+
+    try {
+        // Upload profile pic first if selected
+        if (profilePic) {
+           const imgUploadRes =  await uploadImage(profilePic);
+           profileImageUrl = imgUploadRes.imageUrl||"";
+        }
+
+        // Register
+        const response = await axiosInstance.post(API_PATHS.AUTH.REGISTER, {
+            fullName,
+            email,
+            password,
+            profileImageUrl,
+           
+        });
+
+        const { token, user } = response.data;
+
+        if (token) {
+            localStorage.setItem("token", token);
+            updateUser(user);
+            navigate("/dashboard");
+        }
+    } catch (err) {
+        if (err.response && err.response.data.message) {
+            setError(err.response.data.message);
+        } else {
+            setError("An error occurred. Please try again later.");
+        }
+    }
+};
+
 
   
   return (
     <AuthLayout>
       <div className="lg:w-full h-auto md:h-full mt-10 md:mt-0 flex flex-col justify-center ">
-        <h3 className="text-xl font-semmibold text-black">Create An Account</h3>
+        <h3 className="text-xl  font-bold text-black">Create An Account</h3>
         <p className="text-xs text-slate-700 mb-6 mt-2.5">Join Us Today by Entering your Details Below.</p>
         <form onSubmit={handleSignUp}>
 

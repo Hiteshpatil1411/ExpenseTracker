@@ -7,11 +7,26 @@ const generateToken = (id) => {
 };
 
 //Register User
+const fs = require("fs");
+const path = require("path");
+
 exports.registerUser = async (req, res) => {
-  const { fullname, email, password, profileImageUrl } = req.body;
+  const { fullName, email, password, profileImageUrl } = req.body;
+
+  // Helper to clean up orphaned image
+    const deleteUploadedImage = () => {
+        if (profileImageUrl) {
+            const filename = profileImageUrl.split("/uploads/")[1];
+            if (filename) {
+                const filePath = path.join(__dirname, "../uploads", filename);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            }
+        }
+    };
 
   //VAlidate input
-  if (!fullname || !email || !password) {
+  if (!fullName || !email || !password) {
+    deleteUploadedImage();
     return res
       .status(400)
       .json({ message: "Please provide all required fields" });
@@ -21,12 +36,13 @@ exports.registerUser = async (req, res) => {
     //check if email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      deleteUploadedImage();
       return res.status(400).json({ message: "Email already in use" });
     }
 
     //Create new user
     const user = await User.create({
-      fullname,
+      fullName,
       email,
       password,
       profileImageUrl,
@@ -38,8 +54,9 @@ exports.registerUser = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
+    deleteUploadedImage();
     console.error("Error registering user:", error);
-    res.status(500).json({ message: "Please provide all required fields" });
+    res.status(500).json({ message: "Server errror ,Please try again later" });
     
   }
 };
@@ -48,7 +65,7 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
   if(!email|| !password){
-    return res.status(400).json({message: "Enter Cridencial"})
+    return res.status(400).json({message: "Please enter your credentials"})
   }
   try{
        const user = await User.findOne({ email }).select("+password");
@@ -66,7 +83,7 @@ exports.loginUser = async (req, res) => {
     }
     catch (error) {
     console.error("Error registering user:", error);
-    res.status(500).json({ message: "Please provide all required fields" });
+    res.status(500).json({ message: "Server error, please try again later" });
     
 };
 }

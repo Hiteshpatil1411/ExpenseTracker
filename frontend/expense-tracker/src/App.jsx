@@ -5,6 +5,8 @@ import SignUp from './pages/Auth/SignUp'
 import Home from './pages/Dashboard/Home'
 import Income from './pages/Dashboard/Income'
 import Expense from './pages/Dashboard/Expense'
+import UserProvider,{ UserContext } from './context/userContext'
+
 
 const PrivateRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem("token");
@@ -13,6 +15,7 @@ const PrivateRoute = ({ children }) => {
 
 function App() {
   return (
+    <UserProvider>
     <Router>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" />} />
@@ -23,6 +26,8 @@ function App() {
         <Route path="/expense" element={<PrivateRoute><Expense/></PrivateRoute>} />
       </Routes>
     </Router>
+    </UserProvider> 
+
   )
 }
 
