@@ -29,7 +29,7 @@ const TransactionInfoCard = ({  title, icon, date, amount, type, hideDeleteBtn }
 
                 <div className={`flex items-center gap-2 px-3 py-1 rounded-nmd  ${getAmountStyles(type)}`}>
                   <h6 className="tex-xs font-semibold ">
-                    {type === 'income' ? "+" : "-"}${amount}
+                    {type === 'income' ? "+" : "-"}₹{amount}
                   </h6>
                   {type === 'income' ? (
                     <LuTrendingUp className="text-green-500" />

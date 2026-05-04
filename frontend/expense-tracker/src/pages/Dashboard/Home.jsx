@@ -9,6 +9,8 @@ import { IoMdCard } from "react-icons/io";
 import { LuHandCoins, LuWalletMinimal } from "react-icons/lu";
 import { addThousandSeparator } from "../../utils/helper";
 import RecentTransactions from "../../components/Dashboard/RecentTransactions";
+import FinanceOverview from "../../components/Dashboard/FinanceOverview";
+import ExpenseTramsactions from "../../components/Dashboard/ExpenseTramsactions";
 
 const Home = () => {
   useUserAuth(); // to check if user is authenticated or not
@@ -24,7 +26,7 @@ const Home = () => {
     setLoading(true);
     try {
       const response = await axiosInstance.get(API_PATHS.DASHBOARD.GET_DATA);
-      console.log("Dashboard data response:", response);
+      console.log("Dashboard data response:", response.data);
       if (response.data) {
         setDashboardData(response.data);
       }
@@ -67,9 +69,17 @@ const Home = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2  gap-6 mt-6">
           <RecentTransactions
-          
             transactions={dashboardData?.recentTransactions || []}
             onSeeMore={() => navigation("/expense")}
+          />
+          <FinanceOverview
+            totalBalance={dashboardData?.totalBalance || 0}
+            totalIncome={dashboardData?.totalIncome || 0}
+            totalExpenses={dashboardData?.totalExpenses || 0}
+          />
+          <ExpenseTramsactions
+          transactions={dashboardData?.last30DaysExpenses?.transactions || []}
+          onSeeMore={() => navigation("/expense")}
           />
         </div>
       </div>
