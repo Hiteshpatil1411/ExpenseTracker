@@ -10,6 +10,7 @@ A full-stack web application to track your income and expenses, built with **Rea
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
+- [Component Architecture](#component-architecture)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Backend Setup](#backend-setup)
@@ -36,13 +37,19 @@ Expense Tracker is a personal finance management app that allows users to regist
 ## ✨ Features
 
 - 🔐 User Authentication (Register / Login with JWT)
-- 📊 Dashboard with income & expense overview and charts
+- 👤 Profile photo upload on registration (via Multer)
+- 📊 Dashboard with income & expense summary cards
+- 🥧 Financial overview pie chart (income vs expenses vs balance)
+- 📈 Last 30 days expense bar chart
+- 💸 Recent transactions list with income/expense type indicators
+- 🧾 Expense transactions list (last 30 days)
+- 📉 Last 60 days income chart with summary
 - ➕ Add, view, and delete income entries
 - ➖ Add, view, and delete expense entries
-- 📁 Excel export support (via ExcelJS)
-- 📷 Profile photo upload (via Multer)
-- 🔒 Protected routes (frontend & backend)
-- 📱 Responsive design with Tailwind CSS
+- 📁 Excel export for income and expenses (via ExcelJS)
+- 🔒 Protected routes — frontend (PrivateRoute) & backend (JWT middleware)
+- 📱 Responsive design with Tailwind CSS v4
+- 🍔 Mobile-friendly collapsible side menu via Navbar
 
 ---
 
@@ -58,6 +65,7 @@ Expense Tracker is a personal finance management app that allows users to regist
 | Recharts | 3.x |
 | React Icons | 5.x |
 | React Hot Toast | 2.x |
+| moment.js | latest |
 | Vite | 7.x |
 
 ### Backend
@@ -82,59 +90,130 @@ expense-tracker/
 │
 ├── backend/
 │   ├── config/
-│   │   └── db.js                    # MongoDB connection
+│   │   └── db.js                      # MongoDB connection
 │   ├── controllers/
-│   │   ├── authController.js        # Auth logic (register, login, getUser)
-│   │   ├── incomeController.js      # Income CRUD operations
-│   │   ├── expenseController.js     # Expense CRUD operations
-│   │   └── dashboardController.js   # Dashboard data aggregation
+│   │   ├── authController.js          # register, login, getUserInfo
+│   │   ├── incomeController.js        # Income CRUD + Excel export
+│   │   ├── expenseController.js       # Expense CRUD + Excel export
+│   │   └── dashboardController.js     # Aggregated dashboard data (Promise.all)
 │   ├── middleware/
-│   │   ├── authMiddleware.js        # JWT protect middleware
-│   │   └── uploadMiddleware.js      # Multer file upload config
+│   │   ├── authMiddleware.js          # JWT protect middleware
+│   │   └── uploadMiddleware.js        # Multer config (diskStorage → uploads/)
 │   ├── models/
-│   │   ├── User.js                  # User schema (name, email, password, avatar)
-│   │   ├── Income.js                # Income schema
-│   │   └── Expense.js               # Expense schema
+│   │   ├── User.js                    # fullName, email, password (select:false), profileImageUrl
+│   │   ├── Income.js                  # userId, icon, source, amount, date
+│   │   └── Expense.js                 # userId, icon, category, amount, date
 │   ├── routes/
-│   │   ├── authRoutes.js            # /api/auth (register, login, getUser, upload)
-│   │   ├── incomeRoutes.js          # /api/income
-│   │   ├── expenseRoutes.js         # /api/expense
-│   │   └── dashboardRoutes.js       # /api/dashboard
-│   ├── uploads/                     # Stored profile images (auto-created)
-│   ├── .env                         # Environment variables (never commit!)
-│   ├── .gitignore                   # node_modules, .env
-│   ├── server.js                    # Entry point
+│   │   ├── authRoutes.js              # POST /register, POST /login, GET /getUser, POST /upload-image
+│   │   ├── incomeRoutes.js            # /api/income
+│   │   ├── expenseRoutes.js           # /api/expense
+│   │   └── dashboardRoutes.js         # /api/dashboard
+│   ├── uploads/                       # Profile images (auto-created, served statically)
+│   ├── .env                           # Secrets — never commit
+│   ├── .gitignore                     # node_modules, .env, uploads/
+│   ├── .gitattributes                 # LF line endings enforced
+│   ├── server.js                      # Entry point
 │   └── package.json
 │
 └── frontend/
     └── expense-tracker/
         ├── public/
         ├── src/
-        │   ├── assets/              # Static assets (images, SVGs)
+        │   ├── assets/
+        │   │   └── images/            # allT.png and other static assets
+        │   ├── context/
+        │   │   └── UserContext.jsx    # UserProvider — user, updateUser, clearUser
+        │   ├── hooks/
+        │   │   └── useUserAuth.jsx    # Fetches /getUser on mount; redirects to /login on failure
         │   ├── components/
-        │   │   └── layouts/
-        │   │       ├── AuthLayout.jsx
-        │   │       └── Inputs/
-        │   │           ├── Input.jsx
-        │   │           └── ProfilePhotoSelector.jsx
+        │   │   ├── layouts/
+        │   │   │   ├── DashboardLaytout.jsx   # Shell: Navbar + SideMenu + children
+        │   │   │   ├── AuthLayout.jsx         # Two-column auth shell with decorative panel
+        │   │   │   ├── Navbar.jsx             # Top bar + mobile hamburger menu
+        │   │   │   └── SideMenu.jsx           # Nav links + user avatar + logout
+        │   │   ├── Inputs/
+        │   │   │   ├── Input.jsx              # Reusable input with password toggle
+        │   │   │   └── ProfilePhotoSelector.jsx # Upload/preview/remove profile photo
+        │   │   ├── Cards/
+        │   │   │   ├── InfoCard.jsx           # Stat card (balance, income, expenses)
+        │   │   │   ├── TransactionInfoCard.jsx # Transaction row with type badge + delete btn
+        │   │   │   ├── CustomBarChart.jsx     # Recharts BarChart wrapper (alternating colors)
+        │   │   │   └── CharAvatar.jsx         # Initials fallback avatar
+        │   │   ├── Charts/
+        │   │   │   ├── CustomPieChart.jsx     # Recharts PieChart (donut) with center label
+        │   │   │   ├── CustomTooltip.jsx      # Shared tooltip for charts
+        │   │   │   └── CustomLegend.jsx       # Shared legend for pie chart
+        │   │   └── Dashboard/
+        │   │       ├── RecentTransactions.jsx      # Last 5 mixed transactions
+        │   │       ├── FinanceOverview.jsx          # Pie: income / expenses / balance
+        │   │       ├── ExpenseTramsactions.jsx      # Last 5 expense-only transactions
+        │   │       ├── Last30DaysExpense.jsx        # Bar chart (useMemo transform)
+        │   │       └── RecentIncomeWithChart.jsx    # Last 60 days income chart + summary
         │   ├── pages/
         │   │   ├── Auth/
-        │   │   │   ├── Login.jsx
-        │   │   │   └── SignUp.jsx
+        │   │   │   ├── Login.jsx              # Email/password login → JWT → UserContext
+        │   │   │   └── SignUp.jsx             # Register + image upload flow
         │   │   └── Dashboard/
-        │   │       ├── Home.jsx
-        │   │       ├── Income.jsx
-        │   │       └── Expense.jsx
+        │   │       ├── Home.jsx               # Fetches dashboard data; renders all widgets
+        │   │       ├── Income.jsx             # (In development)
+        │   │       └── Expense.jsx            # (In development)
         │   ├── utils/
-        │   │   ├── apiPath.js       # API base URLs
-        │   │   ├── data.js          # Static/helper data
-        │   │   └── helper.js        # Utility functions (e.g. validateEmail)
-        │   ├── App.jsx
-        │   ├── main.jsx
-        │   └── index.css
+        │   │   ├── apiPath.js                 # BASE_URL + all API_PATHS constants
+        │   │   ├── axiosInstance.js           # Axios instance with JWT interceptor + 401 redirect
+        │   │   ├── uploadImage.js             # Uploads image via multipart/form-data
+        │   │   ├── data.js                    # SIDE_MENU_DATA (nav links + icons)
+        │   │   └── helper.js                  # validateEmail, getInitials, addThousandSeparator,
+        │   │                                  # prepareExpenseBarChartData
+        │   ├── App.jsx                        # Routes + PrivateRoute guard + UserProvider
+        │   ├── main.jsx                       # ReactDOM.createRoot (StrictMode)
+        │   └── index.css                      # Tailwind v4 @theme block + global styles
         ├── vite.config.js
         └── package.json
 ```
+
+---
+
+## 🧩 Component Architecture
+
+```
+App
+└── UserProvider (UserContext — user, updateUser, clearUser)
+    └── Router
+        ├── /login         → Login
+        ├── /signup        → SignUp
+        └── PrivateRoute   → checks localStorage("token")
+            ├── /dashboard → Home
+            │   └── DashboardLaytout (activeMenu="Dashboard")
+            │       ├── Navbar (hamburger + mobile SideMenu)
+            │       ├── SideMenu (avatar + nav links + logout)
+            │       └── children
+            │           ├── InfoCard × 3 (Balance, Income, Expenses)
+            │           ├── RecentTransactions
+            │           ├── FinanceOverview (CustomPieChart)
+            │           ├── ExpenseTramsactions
+            │           ├── Last30DaysExpense (CustomBarChart + useMemo)
+            │           └── RecentIncomeWithChart
+            ├── /income    → Income (in development)
+            └── /expense   → Expense (in development)
+```
+
+> Active menu highlighting is **prop-based** (`activeMenu` string passed down), not `useLocation`.
+
+---
+
+## 🎨 Tailwind v4 Theme
+
+Custom theme is defined in `index.css` using the `@theme` block — **not** `tailwind.config.js`:
+
+```css
+@theme {
+  --font-display: 'Poppins', sans-serif;
+  --breakpoint-3xl: 1920px;
+  --color-primary: #875cf5;
+}
+```
+
+This generates utilities like `bg-primary`, `text-primary` automatically.
 
 ---
 
@@ -142,53 +221,40 @@ expense-tracker/
 
 ### Prerequisites
 
-Make sure you have the following installed:
-
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
-- [MongoDB](https://www.mongodb.com/) (local or Atlas cloud)
+- [Node.js](https://nodejs.org/) v18 or higher
+- [npm](https://www.npmjs.com/)
+- [MongoDB](https://www.mongodb.com/) (local or Atlas)
 
 ---
 
 ### Backend Setup
 
 ```bash
-# 1. Navigate to the backend folder
 cd backend
-
-# 2. Install dependencies
 npm install
-
-# 3. Create a .env file (see Environment Variables section)
-
-# 4. Start the development server
+# Create .env file (see Environment Variables section)
 npm run dev
 ```
 
-The backend will run on: `http://localhost:8000`
+Runs on: `http://localhost:8000`
 
 ---
 
 ### Frontend Setup
 
 ```bash
-# 1. Navigate to the frontend folder
 cd frontend/expense-tracker
-
-# 2. Install dependencies
 npm install
-
-# 3. Start the development server
 npm run dev
 ```
 
-The frontend will run on: `http://localhost:5173`
+Runs on: `http://localhost:5173`
 
 ---
 
 ## 🔐 Environment Variables
 
-Create a `.env` file inside the `backend/` directory:
+Create a `.env` file inside `backend/`:
 
 ```env
 MONGO_URI=your_mongodb_connection_string
@@ -197,7 +263,7 @@ JWT_SECRET=your_jwt_secret_key
 CLIENT_URL=http://localhost:5173
 ```
 
-> ⚠️ **Never commit your `.env` file.** Make sure `.env` is listed in `.gitignore`.
+> ⚠️ **Never commit `.env`.** It must be in `.gitignore`.
 
 ---
 
@@ -205,52 +271,28 @@ CLIENT_URL=http://localhost:5173
 
 ### Authentication Routes
 
-**Base URL:** `/api/auth`  
-**Controller:** `authController.js`
+**Base URL:** `/api/auth` | **Controller:** `authController.js`
 
----
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/register` | ❌ | Register new user |
+| POST | `/api/auth/login` | ❌ | Login + receive JWT |
+| GET | `/api/auth/getUser` | ✅ | Get logged-in user info |
+| POST | `/api/auth/upload-image` | ❌ | Upload profile image → returns URL |
 
-#### 1. Register User
+> **Upload flow:** Upload image first → get URL → pass URL in `/register` body. `registerUser` never touches `req.file`.
 
-**Endpoint:** `POST /api/auth/register`  
-**Method:** `registerUser`  
-**Auth Required:** ❌
-
-**Request Body:**
+#### Register — Request Body
 ```json
 {
-  "fullname": "John Doe",
+  "fullName": "John Doe",
   "email": "john@example.com",
   "password": "password123",
   "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg"
 }
 ```
 
-**Sample Response:**
-```json
-{
-  "id": "65f1a2b3c4d5e6f7g8h9i0j1",
-  "user": {
-    "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
-    "fullname": "John Doe",
-    "email": "john@example.com",
-    "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg",
-    "createdAt": "2024-03-15T10:30:00.000Z",
-    "updatedAt": "2024-03-15T10:30:00.000Z"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
----
-
-#### 2. Login User
-
-**Endpoint:** `POST /api/auth/login`  
-**Method:** `loginUser`  
-**Auth Required:** ❌
-
-**Request Body:**
+#### Login — Request Body
 ```json
 {
   "email": "john@example.com",
@@ -258,90 +300,38 @@ CLIENT_URL=http://localhost:5173
 }
 ```
 
-**Sample Response:**
+#### Login / Register — Response
 ```json
 {
-  "id": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
-    "fullname": "John Doe",
+    "fullName": "John Doe",
     "email": "john@example.com",
-    "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg",
-    "createdAt": "2024-03-15T10:30:00.000Z",
-    "updatedAt": "2024-03-15T10:30:00.000Z"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg"
+  }
 }
 ```
 
----
-
-#### 3. Get User Info
-
-**Endpoint:** `GET /api/auth/getUser`  
-**Method:** `getUserInfo`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Sample Response:**
+#### Upload Image — Response
 ```json
-{
-  "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
-  "fullname": "John Doe",
-  "email": "john@example.com",
-  "profileImageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg",
-  "createdAt": "2024-03-15T10:30:00.000Z",
-  "updatedAt": "2024-03-15T10:30:00.000Z"
-}
-```
-
----
-
-#### 4. Upload Profile Image
-
-**Endpoint:** `POST /api/auth/upload-image`  
-**Method:** Custom route handler  
-**Auth Required:** ❌
-
-**Request Type:** `multipart/form-data`
-
-**Form Data:**
-```
-image: [File]
-```
-
-**Sample Response:**
-```json
-{
-  "imageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg"
-}
+{ "imageUrl": "http://localhost:8000/uploads/1234567890-avatar.jpg" }
 ```
 
 ---
 
 ### Income Routes
 
-**Base URL:** `/api/income`  
-**Controller:** `incomeController.js`
+**Base URL:** `/api/income` | **Controller:** `incomeController.js` | **Auth:** ✅ All routes
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/income/add` | Add income entry |
+| GET | `/api/income/get` | Get all income for user |
+| DELETE | `/api/income/:id` | Delete income by ID |
+| GET | `/api/income/downloadexcel` | Download income as `.xlsx` |
 
-#### 1. Add Income
-
-**Endpoint:** `POST /api/income/add`  
-**Method:** `addIncome`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Request Body:**
+#### Add Income — Request Body
 ```json
 {
   "icon": "💼",
@@ -351,34 +341,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-**Sample Response:**
-```json
-{
-  "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
-  "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-  "icon": "💼",
-  "source": "Salary",
-  "amount": 5000,
-  "date": "2024-03-15T00:00:00.000Z",
-  "createdAt": "2024-03-15T10:35:00.000Z",
-  "updatedAt": "2024-03-15T10:35:00.000Z"
-}
-```
-
----
-
-#### 2. Get All Income
-
-**Endpoint:** `GET /api/income/get`  
-**Method:** `getAllIncome`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Sample Response:**
+#### Get All Income — Response
 ```json
 [
   {
@@ -387,90 +350,30 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "icon": "💼",
     "source": "Salary",
     "amount": 5000,
-    "date": "2024-03-15T00:00:00.000Z",
-    "createdAt": "2024-03-15T10:35:00.000Z",
-    "updatedAt": "2024-03-15T10:35:00.000Z"
-  },
-  {
-    "_id": "65f1a2b3c4d5e6f7g8h9i0j3",
-    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-    "icon": "💰",
-    "source": "Freelance",
-    "amount": 1500,
-    "date": "2024-03-10T00:00:00.000Z",
-    "createdAt": "2024-03-10T14:20:00.000Z",
-    "updatedAt": "2024-03-10T14:20:00.000Z"
+    "date": "2024-03-15T00:00:00.000Z"
   }
 ]
 ```
 
----
-
-#### 3. Delete Income
-
-**Endpoint:** `DELETE /api/income/:id`  
-**Method:** `deleteIncome`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**URL Parameter:**
-```
-id: 65f1a2b3c4d5e6f7g8h9i0j2
-```
-
-**Sample Response:**
+#### Delete Income — Response
 ```json
-{
-  "message": "income Deleted Successfully"
-}
+{ "message": "income Deleted Successfully" }
 ```
-
----
-
-#### 4. Download Income Excel
-
-**Endpoint:** `GET /api/income/downloadexcel`  
-**Method:** `downloadIncomeExcel`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Response:** Excel file download (`income_details.xlsx`)
-
-**Excel Content:**
-| Source | Amount | Date |
-|--------|--------|------|
-| Salary | 5000 | 2024-03-15 |
-| Freelance | 1500 | 2024-03-10 |
 
 ---
 
 ### Expense Routes
 
-**Base URL:** `/api/expense`  
-**Controller:** `expenseController.js`
+**Base URL:** `/api/expense` | **Controller:** `expenseController.js` | **Auth:** ✅ All routes
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/expense/add` | Add expense entry |
+| GET | `/api/expense/get` | Get all expenses for user |
+| DELETE | `/api/expense/:id` | Delete expense by ID |
+| GET | `/api/expense/downloadexcel` | Download expenses as `.xlsx` |
 
-#### 1. Add Expense
-
-**Endpoint:** `POST /api/expense/add`  
-**Method:** `addExpense`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Request Body:**
+#### Add Expense — Request Body
 ```json
 {
   "icon": "🍔",
@@ -480,240 +383,57 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-**Sample Response:**
+#### Delete Expense — Response
 ```json
-{
-  "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
-  "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-  "icon": "🍔",
-  "category": "Food",
-  "amount": 50,
-  "date": "2024-03-15T00:00:00.000Z",
-  "createdAt": "2024-03-15T12:00:00.000Z",
-  "updatedAt": "2024-03-15T12:00:00.000Z"
-}
+{ "message": "Expense Deleted Successfully" }
 ```
-
----
-
-#### 2. Get All Expenses
-
-**Endpoint:** `GET /api/expense/get`  
-**Method:** `getAllExpense`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Sample Response:**
-```json
-[
-  {
-    "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
-    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-    "icon": "🍔",
-    "category": "Food",
-    "amount": 50,
-    "date": "2024-03-15T00:00:00.000Z",
-    "createdAt": "2024-03-15T12:00:00.000Z",
-    "updatedAt": "2024-03-15T12:00:00.000Z"
-  },
-  {
-    "_id": "65f1a2b3c4d5e6f7g8h9i0j5",
-    "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-    "icon": "🚗",
-    "category": "Transport",
-    "amount": 30,
-    "date": "2024-03-14T00:00:00.000Z",
-    "createdAt": "2024-03-14T09:15:00.000Z",
-    "updatedAt": "2024-03-14T09:15:00.000Z"
-  }
-]
-```
-
----
-
-#### 3. Delete Expense
-
-**Endpoint:** `DELETE /api/expense/:id`  
-**Method:** `deleteExpense`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**URL Parameter:**
-```
-id: 65f1a2b3c4d5e6f7g8h9i0j4
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Expense Deleted Successfully"
-}
-```
-
----
-
-#### 4. Download Expense Excel
-
-**Endpoint:** `GET /api/expense/downloadexcel`  
-**Method:** `downloadExpenseExcel`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Response:** Excel file download (`expense_details.xlsx`)
-
-**Excel Content:**
-| Category | Amount | Date |
-|----------|--------|------|
-| Food | 50 | 2024-03-15 |
-| Transport | 30 | 2024-03-14 |
 
 ---
 
 ### Dashboard Routes
 
-**Base URL:** `/api/dashboard`  
-**Controller:** `dashboardController.js`
+**Base URL:** `/api/dashboard` | **Controller:** `dashboardController.js` | **Auth:** ✅
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/dashboard` | Get all aggregated dashboard data |
 
-#### 1. Get Dashboard Data
+> All DB queries run in parallel via `Promise.all()` to minimize response time.
 
-**Endpoint:** `GET /api/dashboard`  
-**Method:** `getDashboardData`  
-**Auth Required:** ✅
-
-**Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Sample Response:**
+#### Response Shape
 ```json
 {
-  "totalBalance": 6420,
-  "totalIncome": 6500,
-  "totalExpenses": 80,
+  "totalBalance": 4000,
+  "totalIncome": 5000,
+  "totalExpenses": 1000,
   "last30DaysExpenses": {
-    "total": 80,
-    "transactions": [
-      {
-        "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
-        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-        "icon": "🍔",
-        "category": "Food",
-        "amount": 50,
-        "date": "2024-03-15T00:00:00.000Z",
-        "createdAt": "2024-03-15T12:00:00.000Z",
-        "updatedAt": "2024-03-15T12:00:00.000Z"
-      },
-      {
-        "_id": "65f1a2b3c4d5e6f7g8h9i0j5",
-        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-        "icon": "🚗",
-        "category": "Transport",
-        "amount": 30,
-        "date": "2024-03-14T00:00:00.000Z",
-        "createdAt": "2024-03-14T09:15:00.000Z",
-        "updatedAt": "2024-03-14T09:15:00.000Z"
-      }
-    ]
+    "total": 1000,
+    "transactions": [{ "_id": "...", "category": "Food", "amount": 1000, "date": "..." }]
   },
   "last60DaysIncome": {
-    "total": 6500,
-    "transactions": [
-      {
-        "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
-        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-        "icon": "💼",
-        "source": "Salary",
-        "amount": 5000,
-        "date": "2024-03-15T00:00:00.000Z",
-        "createdAt": "2024-03-15T10:35:00.000Z",
-        "updatedAt": "2024-03-15T10:35:00.000Z"
-      },
-      {
-        "_id": "65f1a2b3c4d5e6f7g8h9i0j3",
-        "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-        "icon": "💰",
-        "source": "Freelance",
-        "amount": 1500,
-        "date": "2024-03-10T00:00:00.000Z",
-        "createdAt": "2024-03-10T14:20:00.000Z",
-        "updatedAt": "2024-03-10T14:20:00.000Z"
-      }
-    ]
+    "total": 5000,
+    "transactions": [{ "_id": "...", "source": "Salary", "amount": 5000, "date": "..." }]
   },
   "recentTransactions": [
-    {
-      "_id": "65f1a2b3c4d5e6f7g8h9i0j2",
-      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-      "icon": "💼",
-      "source": "Salary",
-      "amount": 5000,
-      "date": "2024-03-15T00:00:00.000Z",
-      "createdAt": "2024-03-15T10:35:00.000Z",
-      "updatedAt": "2024-03-15T10:35:00.000Z",
-      "type": "income"
-    },
-    {
-      "_id": "65f1a2b3c4d5e6f7g8h9i0j4",
-      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-      "icon": "🍔",
-      "category": "Food",
-      "amount": 50,
-      "date": "2024-03-15T00:00:00.000Z",
-      "createdAt": "2024-03-15T12:00:00.000Z",
-      "updatedAt": "2024-03-15T12:00:00.000Z",
-      "type": "expense"
-    },
-    {
-      "_id": "65f1a2b3c4d5e6f7g8h9i0j5",
-      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-      "icon": "🚗",
-      "category": "Transport",
-      "amount": 30,
-      "date": "2024-03-14T00:00:00.000Z",
-      "createdAt": "2024-03-14T09:15:00.000Z",
-      "updatedAt": "2024-03-14T09:15:00.000Z",
-      "type": "expense"
-    },
-    {
-      "_id": "65f1a2b3c4d5e6f7g8h9i0j3",
-      "userId": "65f1a2b3c4d5e6f7g8h9i0j1",
-      "icon": "💰",
-      "source": "Freelance",
-      "amount": 1500,
-      "date": "2024-03-10T00:00:00.000Z",
-      "createdAt": "2024-03-10T14:20:00.000Z",
-      "updatedAt": "2024-03-10T14:20:00.000Z",
-      "type": "income"
-    }
+    { "_id": "...", "source": "Salary", "amount": 5000, "type": "income", "date": "..." },
+    { "_id": "...", "category": "Food", "amount": 1000, "type": "expense", "date": "..." }
   ]
 }
 ```
+
+> `income` entries use `source`; `expense` entries use `category`.
 
 ---
 
 ## 🔒 Authentication Flow
 
-1. User registers via `POST /api/auth/register`
-2. Password is hashed with **bcryptjs** before saving to MongoDB
-3. User logs in via `POST /api/auth/login` and receives a **JWT token** (expires in 1h)
-4. Token is stored in `localStorage` on the frontend
-5. Protected routes verify the token via `authMiddleware` (`protect`)
-6. `req.user` is populated from the decoded JWT on every protected request
+1. **Register:** Upload image first → get URL back → POST `/register` with URL in body
+2. **Password:** Hashed with `bcryptjs` before saving; `select: false` on schema
+3. **Login:** POST `/login` → receive JWT token + user object
+4. **Storage:** Token saved to `localStorage`; user object saved to `UserContext`
+5. **Auth guard:** `useUserAuth` hook calls `GET /getUser` on mount — redirects to `/login` on failure
+6. **Axios interceptor:** Auto-attaches `Authorization: Bearer <token>`; redirects to `/login` on 401 (non-auth routes only)
+7. **Logout:** Clears `localStorage` + calls `clearUser()` → redirects to `/login`
 
 ---
 
@@ -737,12 +457,10 @@ npm run lint    # Run ESLint
 
 ## 🤝 Contributing
 
-Contributions are welcome! To contribute:
-
 1. Fork the repository
 2. Create a new branch: `git checkout -b feature/your-feature-name`
-3. Make your changes and commit: `git commit -m 'Add some feature'`
-4. Push to the branch: `git push origin feature/your-feature-name`
+3. Commit: `git commit -m 'feat: add some feature'`
+4. Push: `git push origin feature/your-feature-name`
 5. Open a Pull Request
 
 ---
@@ -755,20 +473,21 @@ This project is licensed under the **ISC License**.
 
 ## 👨‍💻 Author
 
-**Hitesh Patil**  
+**Hitesh Patil**
 [GitHub](https://github.com/Hiteshpatil1411)
 
 ---
 
 ## 📝 Notes
 
-- All protected routes require JWT authentication via `Authorization: Bearer <token>` header
-- Passwords are automatically hashed before storage using bcryptjs
+- All protected routes require `Authorization: Bearer <token>` header
+- Passwords hashed with bcryptjs; `select: false` means `.select("+password")` required on login queries
 - JWT tokens expire after 1 hour
-- Excel downloads are generated dynamically based on user data
-- Profile images are stored in the `uploads/` folder and served statically
-- All dates are stored in ISO 8601 format
+- Excel downloads are generated dynamically per user
+- Profile images stored in `uploads/` and served via `express.static`
+- Dates stored in ISO 8601 format
+- Income and Expense pages are currently placeholder stubs — in development
 
 ---
 
-> 💡 *This is a fully functional expense tracking application with complete CRUD operations for income and expenses, along with comprehensive dashboard analytics.*
+> 💡 *Full-stack personal finance tracker with JWT auth, dashboard analytics, and chart visualizations.*
